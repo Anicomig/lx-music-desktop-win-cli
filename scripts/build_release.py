@@ -26,9 +26,10 @@ DIST = ROOT / "dist"
 PYPROJECT = ROOT / "pyproject.toml"
 
 # 排除规则：跟 .gitignore 一致（公开仓库口径）
+# 注：.gitignore 本身要打进 zip（用户应该能看到/审阅排除规则）
 EXCLUDE_GLOBS = {
     "__pycache__", "*.pyc", "*.pyo", "*.pyd",
-    ".pytest_cache", ".git", ".gitignore",
+    ".pytest_cache", ".git",
     "dist", "build", "*.egg-info",
     ".vscode", ".idea", "*.tmp", "*.bak", ".DS_Store",
     "Thumbs.db", "desktop.ini",
