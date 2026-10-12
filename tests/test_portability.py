@@ -1,9 +1,12 @@
-"""可移植性测试（P1–P4，见 docs/planning/05-交付要求.md）。
+"""可移植性测试（P1–P4）。
+
+覆盖：
 
 * P1 换 CLI 目录/改名后可用
 * P2 免安装也能跑（run.py）
 * P3 跨机器定位 LX 数据目录（不硬编码用户名）
 * P4 主动查找 LX 安装目录
+* 文档齐备性、以及公开仓库的合规性（无真实数据 / 无断链）
 """
 from __future__ import annotations
 
@@ -39,14 +42,20 @@ class TestSelfLocation:
         assert paths.src_dir().name == "src"
 
     def test_ensure_importable_adds_src(self):
-        """P1：把 src 加进 sys.path，使脚本可自举。"""
+        """P1：把 src 加进 sys.path，使脚本可自举。
+
+        ⚠️ 不能依赖仓库目录名（可能是 lx-cli-v2、lx-music-desktop-win-cli、
+        或用户随意改的名字），所以用 PROJECT 推导而非硬编码字符串。
+        """
         import sys as _sys
         saved = list(_sys.path)
+        src = str(PROJECT / "src")
         try:
-            _sys.path = [p for p in _sys.path if "lx-cli-v2" not in p]
+            _sys.path = [p for p in _sys.path if os.path.abspath(p) != src]
             changed = paths.ensure_importable()
             assert changed is True
-            assert any("lx-cli-v2" in p and p.endswith("src") for p in _sys.path)
+            assert any(os.path.abspath(p) == src for p in _sys.path), \
+                f"未把 {src} 加入 sys.path"
             # 再调一次不应重复添加
             assert paths.ensure_importable() is False
         finally:
@@ -264,9 +273,14 @@ class TestDocsConsistency:
         assert "name:" in text and "description:" in text
 
     def test_planning_docs_archived(self):
-        """计划类文档应放在 docs/planning。"""
+        """计划类文档若存在，应放在 docs/planning。
+
+        注意：公开仓库**有意排除** docs/planning（生产/计划文档不随代码开源），
+        所以这里在缺失时跳过，而不是失败。
+        """
         planning = PROJECT / "docs" / "planning"
-        assert planning.is_dir()
+        if not planning.is_dir():
+            pytest.skip("docs/planning 未随仓库发布（公开仓库有意排除）")
         names = {p.name for p in planning.glob("*.md")}
         assert any("需求" in n or "01-" in n for n in names)
         assert any("改进" in n or "02-" in n for n in names)
@@ -276,6 +290,35 @@ class TestDocsConsistency:
         res = PROJECT / "docs" / "internals" / "research"
         assert res.is_dir()
         assert len(list(res.glob("*.md"))) >= 6
+
+    def test_no_planning_links_when_excluded(self):
+        """公开仓库里若排除了 docs/planning，就不应存在指向它的链接。"""
+        planning = PROJECT / "docs" / "planning"
+        if planning.is_dir():
+            pytest.skip("本副本含 docs/planning")
+        offenders = []
+        for md in PROJECT.rglob("*.md"):
+            if ".git" in md.parts or "__pycache__" in md.parts:
+                continue
+            txt = md.read_text(encoding="utf-8", errors="ignore")
+            if "docs/planning" in txt or "../planning/" in txt:
+                offenders.append(str(md.relative_to(PROJECT)))
+        assert not offenders, f"含指向已排除目录的链接：{offenders}"
+
+    def test_no_secrets_or_real_data(self):
+        """公开仓库不得含真实数据/密钥。"""
+        bad = []
+        for p in PROJECT.rglob("*"):
+            if not p.is_file() or ".git" in p.parts:
+                continue
+            rel = str(p.relative_to(PROJECT))
+            if p.suffix in (".db-wal", ".db-shm"):
+                bad.append(rel)
+            if p.name in ("user_api.json", "config_v2.json", "data.json"):
+                bad.append(rel)
+            if "syncAuthKey" in p.name:
+                bad.append(rel)
+        assert not bad, f"疑似真实数据/密钥：{bad}"
 
 
 # --------------------------------------------------------- P4：查找 exe
