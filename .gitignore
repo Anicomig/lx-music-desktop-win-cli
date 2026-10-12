@@ -31,3 +31,7 @@ _backup/
 # ---- CLI 自管状态（含本机信息）----
 lx_cli_scripts_meta.json
 *syncAuthKey*.json
+
+# ��ʱ�ļ�
+_msg.txt
+COMMIT_MSG*.txt
