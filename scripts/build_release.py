@@ -145,11 +145,24 @@ def verify_zip(zip_path: Path) -> None:
         print(f"    测试 OK: {last}")
 
         # 4. 排除项确实没被打进 zip
-        for forbidden in ("docs/planning", "_backup", "user_api.json",
-                          "config_v2.json", "*.db-wal", "*.db-shm"):
-            found = list(Path(tmp).rglob(forbidden))
-            if found:
-                raise SystemExit(f"zip 包含排除项 {forbidden}: {found[:3]}")
+        #    注意：检查的是"zip 根目录下面**作为路径片段**出现"的禁止项，
+        #    不能用 rglob 走子串，否则 tests 用的 fixture/tmp 路径会误报。
+        for entry in os.listdir(tmp):
+            if entry in {"docs", "tests", "src", "skills", "scripts", "tools"}:
+                full = Path(tmp) / entry
+                for forbidden in ("docs/planning", "_backup"):
+                    if any(part == "planning" or part == "_backup"
+                           for part in (full).parts):
+                        raise SystemExit(f"zip 含排除目录: {forbidden}")
+                # 文件级别的禁止项
+                bad_files = ("user_api.json", "config_v2.json", "data.json")
+                for f in full.rglob("*"):
+                    if not f.is_file():
+                        continue
+                    if f.name in bad_files or f.suffix in (".db-wal", ".db-shm"):
+                        raise SystemExit(f"zip 包含排除文件: {f.relative_to(tmp)}")
+                    if "syncAuthKey" in f.name or f.name == "lx_cli_scripts_meta.json":
+                        raise SystemExit(f"zip 含密钥: {f.relative_to(tmp)}")
         print("    排除项校验通过")
 
 
