@@ -27,17 +27,30 @@ PYPROJECT = ROOT / "pyproject.toml"
 
 # 排除规则：跟 .gitignore 一致（公开仓库口径）
 # 注：.gitignore 本身要打进 zip（用户应该能看到/审阅排除规则）
+# 含"路径含"项（绝对路径，非文件名），用于排除整目录：
+EXCLUDE_PATH_FRAGMENTS = {
+    "docs/planning",       # 生产/计划文档
+    "_backup",             # 备份目录
+    "__pycache__", ".pytest_cache", ".git", "dist", "build",
+}
 EXCLUDE_GLOBS = {
-    "__pycache__", "*.pyc", "*.pyo", "*.pyd",
-    ".pytest_cache", ".git",
-    "dist", "build", "*.egg-info",
-    ".vscode", ".idea", "*.tmp", "*.bak", ".DS_Store",
-    "Thumbs.db", "desktop.ini",
+    "*.pyc", "*.pyo", "*.pyd",
+    "*.egg-info", ".vscode", ".idea", "*.tmp", "*.bak",
+    ".DS_Store", "Thumbs.db", "desktop.ini",
     "_msg.txt", "COMMIT_MSG*.txt",
+    # 真实数据/配置（按文件名）
+    "user_api.json", "config_v2.json", "data.json",
+    "*.db-wal", "*.db-shm", "*.db-journal",
+    # 同步密钥
+    "*syncAuthKey*.json",
+    "lx_cli_scripts_meta.json",
 }
 
 
 def should_exclude(p: Path) -> bool:
+    rel_posix = p.as_posix()
+    if any(frag in rel_posix.split("/") for frag in EXCLUDE_PATH_FRAGMENTS):
+        return True
     rel = p.name
     if rel in EXCLUDE_GLOBS:
         return True
