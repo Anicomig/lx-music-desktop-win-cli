@@ -48,9 +48,18 @@ EXCLUDE_GLOBS = {
 
 
 def should_exclude(p: Path) -> bool:
-    rel_posix = p.as_posix()
-    if any(frag in rel_posix.split("/") for frag in EXCLUDE_PATH_FRAGMENTS):
-        return True
+    """是否应排除该路径。
+
+    两类规则：
+    * 路径前缀：``docs/planning``、``_backup`` 等整段目录
+    * 文件名/后缀模式：``*.pyc``、``user_api.json`` 等
+    """
+    parts = set(p.parts)
+    # 路径前缀规则
+    for frag in EXCLUDE_PATH_FRAGMENTS:
+        if frag in parts:
+            return True
+    # 文件名/后缀规则
     rel = p.name
     if rel in EXCLUDE_GLOBS:
         return True
