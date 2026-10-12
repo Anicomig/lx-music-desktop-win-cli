@@ -27,11 +27,15 @@ PYPROJECT = ROOT / "pyproject.toml"
 
 # 排除规则：跟 .gitignore 一致（公开仓库口径）
 # 注：.gitignore 本身要打进 zip（用户应该能看到/审阅排除规则）
-# 含"路径含"项（绝对路径，非文件名），用于排除整目录：
+# ⚠️ 路径段（**单层目录名**，不要写"a/b"，要写"a"和"b"两个）
 EXCLUDE_PATH_FRAGMENTS = {
-    "docs/planning",       # 生产/计划文档
-    "_backup",             # 备份目录
-    "__pycache__", ".pytest_cache", ".git", "dist", "build",
+    "planning",            # docs/planning
+    "_backup",             # _backup
+    "__pycache__",
+    ".pytest_cache",
+    ".git",
+    "dist",
+    "build",
 }
 EXCLUDE_GLOBS = {
     "*.pyc", "*.pyo", "*.pyd",
