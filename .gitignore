@@ -1,0 +1,33 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+*.tmp
+*.bak
+
+# ---- 生产/计划文档：不随代码开源 ----
+docs/planning/
+
+# ---- 备份与真实数据：绝不上传 ----
+_backup/
+*.db
+*.db-wal
+*.db-shm
+
+# 例外：脱敏测试夹具是合成数据，需随仓库发布以支持测试
+!tests/fixtures/lx.data.db
+
+# ---- CLI 自管状态（含本机信息）----
+lx_cli_scripts_meta.json
+*syncAuthKey*.json

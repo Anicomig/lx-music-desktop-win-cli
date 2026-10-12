@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lx-cli"
+version = "0.2.0"
+description = "CLI for LX Music desktop (洛雪音乐助手) — AI-friendly control, search, playlist and source-script management"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "click>=8.1",
+    "requests>=2.32",
+]
+
+[project.optional-dependencies]
+sync = ["websockets>=12.0", "cryptography>=42.0", "pyjwt>=2.8"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+lx = "lx_cli.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,22 @@
+初始提交：lx-music-desktop-win-cli
+
+Windows 端 LX Music Desktop（洛雪音乐助手）命令行工具，为 AI 使用设计。
+
+能力：
+- 搜索：聚合/单平台/多平台（kg/kw/tx/wy/mg，直连官方接口）
+- 播放：控制、状态、歌词（开放 API）+ 播放指定歌曲（Scheme URL）
+- 歌单：读写、按内容比对后批量插入（默认预演）
+- 音源脚本：管理 pdone/lx-music-source 的 JS 脚本（安装/更新/切换）
+- 数据库：只读查询 lx.data.db
+
+特性：
+- 全命令 --json 稳定输出 + 明确退出码（0/1/2/3/4），便于 AI/脚本消费
+- 可移植：改目录名/换电脑均可用；自动定位 %APPDATA% 与 LX 安装位置
+- 安全：写操作要求关闭 LX；写默认预演；音源脚本按内容哈希判更新
+
+测试：291 用例通过
+文档：用户手册 / AI 指南 / 命令参考 / 内部架构与契约 / skills
+
+依赖上游：
+- https://github.com/lyswhut/lx-music-desktop
+- https://github.com/pdone/lx-music-source
