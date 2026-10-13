@@ -1,0 +1,49 @@
+docs+test: 更正代理 502 归因（真凶是 0.0.0.0 而非 trust_env）+ 真机验证 16/16
+
+## 更正原排障文档的错误归因
+
+原《安装排障清单》§2.2 称 502 是"未绕过系统代理"所致。
+真机实测证明**归因不准确**：
+
+    proxy_bypass('127.0.0.1') = True   -> requests 自动豁免本机
+                                          即便强制指定 proxies 也返回 200
+    proxy_bypass('0.0.0.0')   = False  -> 0.0.0.0 不豁免，会被发给系统代理
+    http://0.0.0.0:23330/status  -> 502   ★
+    http://127.0.0.1:23330/status -> 200
+
+真凶链条：
+    bindLan=true -> host=0.0.0.0
+      -> requests 认为 0.0.0.0 非本地，发给系统代理
+      -> 代理连不上 0.0.0.0（监听通配符，非可连接目标）
+      -> 502
+
+## 两处修复重新定性
+
+* host 固定 127.0.0.1：**主修复**（真凶）★★★
+* _local_session(trust_env=False)：**防御性加固**，保留
+  （企业 PAC 可能连 127.0.0.1 也代理；成本为零，收益明确）
+
+分工约定不变：本机端点绕代理，外网搜索走代理。
+
+## 真机验证（scripts/test_proxy_live.py，可复跑）
+
+环境：系统代理开启 127.0.0.1:7890，NO_PROXY 未设，LX 运行
+结果：16/16 通过
+  - 本机向：lx status 无 502，返回真实曲目；lyric 正常
+  - 外网向：lx search 10 首、5 平台全可用
+  - 反证：0.0.0.0 -> 502 / 127.0.0.1 -> 200
+  - lx doctor 8 项全 ok（本机 API + 外网搜索同时 ok = 分工正确）
+
+## 防误诊回归测试
+
+tests/test_openapi_client.py::TestProxyInteraction：
+  * 断言 proxy_bypass('127.0.0.1') is True
+  * 断言 proxy_bypass('0.0.0.0') is False（变了则需重评 host 策略）
+  * 断言不论 bindLan 为何，端点 host 都不是 0.0.0.0
+
+## 文档
+
+* 迁移到新电脑.md §9.1/§9.2 按结论改写（含实测对比表）
+* 新增 docs/planning/08-代理502归因更正与真机验证.md
+
+测试：336 passed, 1 skipped

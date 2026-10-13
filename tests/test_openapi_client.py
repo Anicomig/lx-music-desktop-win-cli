@@ -151,6 +151,48 @@ class TestEndpointsHost:
         assert ep.base == "http://127.0.0.1:23330"
 
 
+class TestProxyInteraction:
+    """★ 代理与本机请求的真实关系（实测证据，防误诊）。
+
+    关键事实（在系统代理 127.0.0.1:7890 环境下实测）：
+
+        proxy_bypass('127.0.0.1') = True    -> requests 自动豁免本机
+        proxy_bypass('0.0.0.0')   = False   -> 0.0.0.0 **会走代理**
+        连 127.0.0.1:23330 -> 200（即便强制走代理也 200）
+        连 0.0.0.0:23330   -> 502  ★ 真凶
+
+    所以 502 的根因是"host 用了 0.0.0.0"，不是"没绕过代理"。
+    这组测试锁定该认知，避免以后误改回 0.0.0.0 或误删 host 修复。
+    """
+
+    def test_127_is_proxy_bypassed_but_0000_is_not(self):
+        """requests 对 127.0.0.1 豁免代理，对 0.0.0.0 不豁免。"""
+        import urllib.request
+        assert urllib.request.proxy_bypass("127.0.0.1") is True
+        assert urllib.request.proxy_bypass("localhost") is True
+        # 0.0.0.0 不豁免 -> 会被发给系统代理 -> 代理连不上 -> 502
+        assert urllib.request.proxy_bypass("0.0.0.0") is False, \
+            "若此断言变了，说明 0.0.0.0 已能豁免代理，需重新评估 host 策略"
+
+    def test_endpoints_never_use_0000(self, tmp_path, monkeypatch):
+        """不论 bindLan 为何，端点 host 都不能是 0.0.0.0。
+
+        这是 502 的唯一充分条件，务必锁死。
+        """
+        from lx_cli.core import openapi_client as mod
+        for bind_lan in (True, False):
+            cfg = tmp_path / f"c{bind_lan}.json"
+            cfg.write_text(
+                '{"setting":{"openAPI":{"enable":true,"port":"23330",'
+                f'"bindLan":{str(bind_lan).lower()}}}}}',
+                encoding="utf-8")
+            monkeypatch.setattr(mod, "config_v2_path", lambda *a, **kw: cfg)
+            ep = mod.endpoints_from_config(tmp_path / "lx.exe")
+            assert "0.0.0.0" not in ep.base, \
+                f"bindLan={bind_lan} 时端点含 0.0.0.0 -> 必致 502：{ep.base}"
+            assert ep.base.startswith("http://127.0.0.1:")
+
+
 class TestLocalSessionBypassesProxy:
     """★ 本机会话必须 trust_env=False（绕过系统代理）。"""
 
