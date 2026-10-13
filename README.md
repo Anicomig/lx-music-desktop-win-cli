@@ -63,7 +63,17 @@ lx play-song --name X --singer Y --source kg --songmid Z --hash H   # 播放指�
 
 ### Python 依赖
 
-```bash
+**推荐用内置 wheels 离线安装**（不联网，约 0.7 MB）：
+
+```cmd
+install.bat
+:: 或手动：
+python -m pip install --no-index --find-links wheels click requests
+```
+
+联网安装：
+
+```cmd
 python -m pip install click requests
 ```
 
@@ -71,6 +81,8 @@ python -m pip install click requests
 |---|---|---|
 | [`click`](https://pypi.org/project/click/) | ≥ 8.1 | 命令行框架 |
 | [`requests`](https://pypi.org/project/requests/) | ≥ 2.32 | HTTP（含自动重试） |
+
+传递依赖（`urllib3` / `certifi` / `idna` / `charset-normalizer`）已一并内置在 `wheels/`。
 
 **可选**（仅 `sync` 相关功能需要，当前版本未接线，可暂不装）：
 
@@ -84,27 +96,40 @@ python -m pip install websockets cryptography pyjwt
 
 ---
 
-## 快速开始（3 步）
+## 快速开始（2 步）
 
-### 1. 运行方式（任选其一）
+### 1. 安装依赖
 
-**方式 A：免安装（推荐先试）**
+**方式 A：一键脚本（推荐，离线、免联网）**
 
 ```cmd
-cd lx-music-desktop-win-cli
+install.bat
+```
+
+它会自动：找 Python → **用内置 wheels 离线装依赖** → 验证 → 可选装成 `lx` 命令 → 跑自检。
+
+> 内置 `wheels/` 约 0.7 MB，**完全不联网**，秒级完成。
+> 这样就不必担心网络慢、pip 源不通、临时目录受限等问题。
+
+**方式 B：手动（想自己控制时）**
+
+```cmd
+python -m pip install --no-index --find-links wheels click requests   :: 离线
+python -m pip install click requests                                  :: 或联网
+```
+
+国内加速：`-i https://pypi.tuna.tsinghua.edu.cn/simple`
+
+**方式 C：完全免安装**
+
+装了依赖后直接跑，不需要 `pip install` 本项目：
+
+```cmd
 python run.py --help
 lx.bat --help
 ```
 
-> 免安装方式**支持随意改目录名/搬家**：启动器按自身位置定位代码，不依赖 `pip install`。
-
-**方式 B：安装为 `lx` 命令**
-
-```cmd
-python -m pip install -e .        :: 开发模式（改代码即时生效）
-python -m pip install .           :: 正式安装
-lx --help
-```
+> 免安装方式**支持随意改目录名/搬家**：启动器按自身位置定位代码。
 
 ### 2. 让 LX 开启开放 API
 
@@ -119,7 +144,27 @@ lx status                 :: 验证能读到状态
 ### 3. 确认环境
 
 ```cmd
-lx where                  :: 显示 LX 安装路径与数据目录（含诊断信息）
+lx doctor                 :: 一键自检（8 项，每项失败都给下一步命令）
+lx where                  :: 显示 LX 安装路径与数据目录
+```
+
+---
+
+## 卸载
+
+```cmd
+uninstall.bat
+```
+
+交互式确认，**只清 CLI 自己的痕迹**（pip 包 / `lx.exe` / 元数据）。
+**不会**删除 LX Music Desktop 本体，也**不会**删除你的数据（歌单、配置、音源脚本）。
+
+非交互（脚本/AI 用）：
+
+```cmd
+lx uninstall              :: dry-run 预览
+lx uninstall --apply --yes
+lx uninstall --apply --yes --restore-config   :: 顺带关掉开放 API（需先关 LX）
 ```
 
 ---

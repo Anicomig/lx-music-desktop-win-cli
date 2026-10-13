@@ -142,10 +142,17 @@ def verify_zip(zip_path: Path) -> None:
         # 2. 关键文件
         for must in ("README.md", "pyproject.toml", "run.py", "lx.bat",
                      ".gitignore", "src/lx_cli/__init__.py",
-                     "skills/lx-cli/SKILL.md", "tests/fixtures/lx.data.db"):
+                     "skills/lx-cli/SKILL.md", "tests/fixtures/lx.data.db",
+                     "install.bat", "uninstall.bat",
+                     "wheels/MANIFEST.json"):
             if not (Path(tmp) / must).is_file():
                 raise SystemExit(f"缺少关键文件: {must}")
-        print("    关键文件齐全")
+        # 内置 wheels 必须能离线装上核心依赖
+        whl = " ".join(p.name.lower() for p in (Path(tmp) / "wheels").glob("*.whl"))
+        for dep in ("click", "requests"):
+            if dep not in whl:
+                raise SystemExit(f"内置 wheels 缺少 {dep}：{whl}")
+        print("    关键文件齐全（含内置 wheels）")
 
         # 3. 测试
         r = subprocess.run([sys.executable, "-m", "pytest", "tests/", "-q"],
