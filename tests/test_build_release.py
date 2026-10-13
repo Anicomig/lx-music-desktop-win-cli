@@ -55,6 +55,13 @@ def test_KEEP_normal_files():
     assert not build_release.should_exclude(ROOT / "docs" / "guide" / "功能与操作.md")
 
 
+def test_exclude_releases_dir():
+    """releases/ 是本地发布包缓存，绝不能进新 zip（否则 zip 套 zip）。"""
+    assert build_release.should_exclude(
+        ROOT / "releases" / "lx-music-desktop-win-cli-v0.2.0.zip")
+    assert build_release.should_exclude(ROOT / "releases" / "anything")
+
+
 # ---------- 端到端：打 zip 实际校验内容 ----------
 
 def test_built_zip_excludes_forbidden(tmp_path, monkeypatch):

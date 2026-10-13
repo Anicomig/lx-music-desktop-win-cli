@@ -17,7 +17,7 @@
 - **Open API 502（真机验证）**：根因是 `bindLan=true` 时把连接目标写成
   `0.0.0.0`（监听通配符，不可连接且会被发给系统代理）。现固定为 `127.0.0.1`。
   另为本机端点引入独立会话 `_local_session()`（`trust_env=False`）作为加固。
-  详见 `docs/planning/08-代理502归因更正与真机验证.md`。
+  详见 `docs/guide/迁移到新电脑.md` §9.1。
 - **`--exe` 选项此前未生效**：`find_exe()` 现在接受显式覆盖参数。
 - **`lx where` 的潜在崩溃**：改用 `find_exe(ctx.exe)`。
 - **`status-install` 的全局 lx 误判**：正确区分"PATH 上的 lx.exe"与

@@ -36,6 +36,7 @@ EXCLUDE_PATH_FRAGMENTS = {
     ".git",
     "dist",
     "build",
+    "releases",            # 本地发布包缓存（zip 套 zip，绝不能进包）
 }
 EXCLUDE_GLOBS = {
     "*.pyc", "*.pyo", "*.pyd",
