@@ -41,7 +41,7 @@ Commands:
   db              数据库只读查询（LX 运行时也安全）。
   dislike
   doctor
-  download        下载记录查询与校验（只读）。
+  download        下载：记录查询（只读）+ 借 JS 音源下载。
   hot
   is-running
   leaderboard
@@ -185,15 +185,20 @@ Options:
 ```text
 Usage: lx download [OPTIONS] COMMAND [ARGS]...
 
-  下载记录查询与校验（只读）。
+  下载：记录查询（只读）+ 借 JS 音源下载。
+
+  只读：stats / list / failed / verify 执行：url / get / repair（调用 Node 执行 JS 音源脚本）
 
 Options:
   -h, --help  Show this message and exit.
 
 Commands:
   failed
+  get
   list
+  repair
   stats
+  url
   verify
 ```
 

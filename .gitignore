@@ -38,3 +38,7 @@ COMMIT_MSG*.txt
 
 # ---- 本地构建产物：发布包缓存，不入库（正式分发走 GitHub Releases）----
 releases/
+
+# ---- 便携 Node（体积大，只随发布 zip 分发）----
+tools/node/
+

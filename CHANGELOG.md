@@ -5,6 +5,14 @@
 ## 未发布
 
 ### 新增
+- **`lx download url/get/repair`（P3）—— CLI 自己执行 JS 音源下载**：
+  * `download url <songmid> --source kw` 取播放直链（排查"能不能取到"）
+  * `download get <songmid> --source kw --out <dir>` 下载单曲
+  * `download repair --out <dir> [--apply]` 批量重下失败曲（默认预演）
+  实现方式：**Node sidecar** 加载 LX 的 JS 音源脚本，复刻 desktop 的
+  `musicUrl` 协议取直链，再由 CLI HTTP 下载。
+- **内嵌便携 Node**（`tools/node/`，89 MB）：开箱即用，无需用户装 Node。
+  用 `scripts/prepare_node.py` 准备；发布包随带。
 - **`lx download` 命令族（只读）** —— 查看下载状况：
   * `download stats` —— 总数/完成/失败、按状态/质量/来源统计、总字节
   * `download list` —— 逐条列出（可按 status/source/quality 过滤）
@@ -22,7 +30,17 @@
   实测 LX 下载后会补写 ID3 标签，正常文件也差 1~2%，1% 会误报 70 条。
 
 ### 测试
-- 379 passed, 1 skipped（新增 30 用例）
+- 421 passed, 2 skipped（新增 61 用例）
+
+### ⚠️ 安全说明
+CLI 现在会**执行第三方 JS 音源脚本**。Node 的 `vm` **不是安全沙箱**
+（脚本理论上可经原型链逃逸）。已做的限制：独立子进程、不注入
+`fs`/`child_process`/`net`、只暴露受控 `lx.*` 接口、30s 超时强杀、
+`--max-old-space-size=256`。**请只运行你信任的音源脚本。**
+
+### 资源管理
+Node 为**一次性子进程**：按需启动、取到结果立即退出、绝不常驻。
+已用 12 个用例覆盖（成功/失败/超时/坏脚本/Ctrl+C 后均无残留进程）。
 
 ---
 

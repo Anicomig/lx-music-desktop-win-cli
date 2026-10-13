@@ -1,22 +1,33 @@
-"""``lx download`` —— 下载记录查询（只读）。
+"""``lx download`` —— 下载记录查询 + 借 JS 音源下载。
 
-只读 ``download_list`` / ``music_url`` 表，**不发起下载、不修改任何数据**。
-LX 运行时也安全。
+* **只读子命令**（``stats`` / ``list`` / ``failed`` / ``verify``）：
+  只读 ``download_list`` 表，LX 运行时也安全。
+* **执行子命令**（``url`` / ``get``）：调用 Node sidecar 执行 JS 音源脚本
+  取直链并下载。**一次性进程，用完即释放**。
 
-> 注：LX 的下载动作只能在 GUI 里发起（Open API / Scheme URL 均无下载端点）。
-> 本命令族负责"看清下载状况"，并把失败项整理成可操作的清单。
+> 注：LX 界面本身的下载动作 CLI 无法触发（Open API / Scheme URL
+> 均无下载端点）。``url``/``get`` 是**CLI 自己下载**，不走 LX。
 """
 from __future__ import annotations
+
+import sys
 
 import click
 
 from ..core import db_reader
+from ..download import fetcher, jshost
+from ..errors import UsageError
+from ..scripts import service as script_service
 from ._common import Ctx, emit, json_option, pass_ctx, wrap_errors
 
 
 @click.group("download")
 def download_group() -> None:
-    """下载记录查询与校验（只读）。"""
+    """下载：记录查询（只读）+ 借 JS 音源下载。
+
+    只读：stats / list / failed / verify
+    执行：url / get / repair（调用 Node 执行 JS 音源脚本）
+    """
 
 
 def _fmt_bytes(n: int) -> str:
@@ -168,3 +179,173 @@ def dl_verify(ctx: Ctx, no_size: bool) -> None:
             lines.append(f"  ! {r['name']}  实际={_fmt_bytes(r['actualSize'])} "
                          f"期望={_fmt_bytes(r['expectedSize'])}")
     emit(ctx, "\n".join(lines), v)
+
+
+# --------------------------------------------------------------- 执行 JS 音源
+
+def _resolve_script(ctx: Ctx, want: str | None) -> tuple[str, str]:
+    """返回 (脚本名, 源码)。want 为空时用当前启用的。"""
+    rows = script_service.list_scripts(exe_path=ctx.exe)
+    if not rows:
+        raise UsageError("没有已安装的音源脚本。先跑 lx script install <名字> --apply")
+
+    target = None
+    if want:
+        for r in rows:
+            if want in (r.get("id"), r.get("name")):
+                target = r
+                break
+        if target is None:
+            names = ", ".join(r.get("name", "?") for r in rows)
+            raise UsageError(f"找不到脚本 {want!r}。已装：{names}")
+    else:
+        active = script_service.get_active_source(exe_path=ctx.exe)
+        for r in rows:
+            if r.get("id") == active:
+                target = r
+                break
+        if target is None:
+            target = rows[0]
+
+    # 取明文源码
+    from ..scripts import store as script_store
+    code = ""
+    for e in script_store.load_entries(exe_path=ctx.exe):
+        if getattr(e, "id", None) == target.get("id"):
+            code = getattr(e, "script", "") or ""
+            break
+    if not code:
+        raise UsageError(f"无法读取脚本源码：{target.get('name')}")
+    return target.get("name", ""), code
+
+
+def _suggest_filename(ctx: Ctx, songmid: str, source: str,
+                      url: str) -> str | None:
+    """用库里的歌曲信息生成文件名（'歌名 - 歌手.mp3'）。
+
+    库里查不到就返回 None，让 fetcher 从 URL 推断。
+    """
+    try:
+        sid = f"{source}_{songmid}" if source != "kg" else songmid
+        rows = db_reader.query(
+            "SELECT name, singer, interval FROM my_list_music_info "
+            "WHERE id = ? LIMIT 1", (sid,),
+            db_override=ctx.db_override, exe_path=ctx.exe)
+        # 兜底：kg 的 id 形如 <songmid>_<hash>
+        if not rows and source == "kg":
+            rows = db_reader.query(
+                "SELECT name, singer, interval FROM my_list_music_info "
+                "WHERE id LIKE ? LIMIT 1", (f"{songmid}_%",),
+                db_override=ctx.db_override, exe_path=ctx.exe)
+        if rows:
+            name = rows[0].get("name") or ""
+            singer = rows[0].get("singer") or ""
+            if name:
+                ext = fetcher.guess_ext(url)
+                return fetcher.safe_filename(
+                    f"{name} - {singer}" if singer else name, ext)
+    except Exception:                               # noqa: BLE001
+        pass
+    return None
+
+
+def _require_node() -> None:
+    if not jshost.node_available():
+        rep = jshost.doctor_report()
+        raise UsageError(
+            "未找到可用的 Node 运行时（执行 JS 音源脚本必需）。\n"
+            f"  宿主脚本: {rep['hostScript']}  "
+            f"{'✓' if rep['hostScriptExists'] else '✗ 缺失'}\n"
+            f"  Node    : {rep['node'] or '✗ 未找到'}  ({rep['nodeSource']})\n"
+            "  解决：\n"
+            "    • 安装 Node 并确保在 PATH 中，或\n"
+            "    • 把便携版放到 <cli-root>/tools/node/node.exe，或\n"
+            "    • 设置环境变量 LX_NODE=<node.exe 完整路径>")
+
+
+@download_group.command("url")
+@click.argument("songmid")
+@click.option("--source", "-s", "source", required=True,
+              help="平台标识：kg/kw/tx/wy/mg。")
+@click.option("--quality", "-q", default="320k", show_default=True,
+              help="期望音质：flac24bit/flac/320k/128k。")
+@click.option("--script", "script_name", default=None,
+              help="指定用哪个音源脚本（默认当前启用的）。")
+@json_option
+@pass_ctx
+@wrap_errors
+def dl_url(ctx: Ctx, songmid: str, source: str, quality: str,
+           script_name: str | None) -> None:
+    """取播放直链（不下载）。用 JS 音源脚本执行。
+
+    用于排查"某首歌能不能取到地址"。
+    """
+    _require_node()
+    name, code = _resolve_script(ctx, script_name)
+    r = jshost.fetch_url(code, source=source, songmid=songmid,
+                         quality=quality, script_name=name)
+    payload = {**r.to_json(), "script": name}
+    if r.ok:
+        emit(ctx, f"直链: {r.url}\n  脚本: {name}  音质: {r.quality}  "
+                  f"耗时: {r.elapsed_ms}ms", payload)
+    else:
+        emit(ctx, f"取直链失败（{r.stage}）: {r.error}\n  脚本: {name}",
+             payload)
+        sys.exit(4)
+
+
+@download_group.command("get")
+@click.argument("songmid")
+@click.option("--source", "-s", "source", required=True,
+              help="平台标识：kg/kw/tx/wy/mg。")
+@click.option("--quality", "-q", default="320k", show_default=True)
+@click.option("--out", "-o", "out_dir", required=True,
+              help="下载目录。")
+@click.option("--name", "fname", default=None,
+              help="文件名（默认从直链推断）。")
+@click.option("--script", "script_name", default=None,
+              help="指定用哪个音源脚本（默认当前启用的）。")
+@click.option("--overwrite", is_flag=True, help="已存在时覆盖。")
+@json_option
+@pass_ctx
+@wrap_errors
+def dl_get(ctx: Ctx, songmid: str, source: str, quality: str, out_dir: str,
+           fname: str | None, script_name: str | None,
+           overwrite: bool) -> None:
+    """下载一首歌（CLI 自己下载，不走 LX）。
+
+    流程：JS 音源取直链 → HTTP 下载 → 写盘。
+    Node 进程**一次性使用，用完即释放**。
+    """
+    _require_node()
+    name, code = _resolve_script(ctx, script_name)
+
+    r = jshost.fetch_url(code, source=source, songmid=songmid,
+                         quality=quality, script_name=name)
+    if not r.ok:
+        emit(ctx, f"取直链失败（{r.stage}）: {r.error}",
+             {"ok": False, "stage": r.stage, "error": r.error,
+              "script": name})
+        sys.exit(4)
+
+    # 文件名：优先用库里的"歌名 - 歌手"，否则从直链推断
+    if not fname:
+        fname = _suggest_filename(ctx, songmid, source, r.url)
+
+    d = fetcher.download(r.url, out_dir, filename=fname,
+                         overwrite=overwrite)
+    payload = {
+        "ok": d.ok, "path": d.path, "bytes": d.bytes, "error": d.error,
+        "url": r.url, "source": source, "quality": r.quality, "script": name,
+    }
+    if d.ok:
+        kind = fetcher.detect_audio_kind(d.path)
+        payload["detectedFormat"] = kind
+        warn = ""
+        if r.quality.startswith("flac") and kind == "mp3":
+            warn = ("\n  ⚠️ 注意：请求 flac 但实际是 MP3（音源脚本可能未真正提供无损）")
+        emit(ctx, f"已下载: {d.path}  ({d.bytes/1024/1024:.2f} MB)"
+                  f"\n  格式: {kind}{warn}", payload)
+    else:
+        emit(ctx, f"下载失败: {d.error}", payload)
+        sys.exit(1)

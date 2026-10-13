@@ -59,6 +59,10 @@ def find_broken_links() -> list[tuple[str, str]]:
     for md in ROOT.rglob("*.md"):
         if "__pycache__" in md.parts or ".pytest_cache" in md.parts:
             continue
+        # 跳过第三方 vendor 内容（便携 Node 自带的 README 等），
+        # 它们的相对链接指向未随包分发的文件，不是我们的问题。
+        if "node" in md.parts and "tools" in md.parts:
+            continue
         text = md.read_text(encoding="utf-8", errors="ignore")
         # 去掉代码块，避免把 JS/示例里的括号当链接
         text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
