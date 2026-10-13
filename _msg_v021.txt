@@ -1,0 +1,23 @@
+feat(v0.2.1): 新增 lx status-install + install.bat 支持就地更新旧版
+
+## 新增
+- lx status-install：完整安装状态（版本/安装方式 editable|site-packages|portable/
+  包位置/Python 版本与架构/依赖/lx.exe 解析/数据目录/全局可用性/内置 wheels）
+  支持 --json。区别于 --version（后者保持只显示版本号）
+- install.bat 支持就地更新：检测已装 lx-cli 时自动覆盖，首次安装与升级同一脚本
+
+## 修复（本轮真机验证发现）
+- status-install 全局 lx 误判：正确区分 PATH 上的 lx.exe 与当前目录 ./lx.bat，
+  遍历 PATH 找绝对路径可执行文件并排除项目内目录（消除假阳/假阴）
+- _detect_install_mode 顺序修正：先问 pip 再退回路径推断，
+  否则 editable 安装会被误判成"免安装"
+
+## 文档
+- CHANGELOG.md：v0.2.1 / v0.2.0 变更记录
+- README、迁移指南补 status-install 说明
+- commands.md 重新生成
+
+## 测试
+- tests/test_status_install.py：9 用例（含全局 lx 不误判、--version 仍单行）
+- 修两处环境相关测试：proxy_bypass 无代理时跳过；doctor 退出码接受 warn(2)
+- 344 passed, 2 skipped

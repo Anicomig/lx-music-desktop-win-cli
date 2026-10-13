@@ -145,8 +145,11 @@ lx status                 :: 验证能读到状态
 
 ```cmd
 lx doctor                 :: 一键自检（8 项，每项失败都给下一步命令）
+lx status-install         :: 查看安装状态（版本/安装方式/位置/是否全局可用）
 lx where                  :: 显示 LX 安装路径与数据目录
 ```
+
+> `--version` 只显示版本号；想知道"装在哪、怎么装的、全局可用吗"用 `status-install`。
 
 ---
 
@@ -182,7 +185,7 @@ lx uninstall --apply --yes --restore-config   :: 顺带关掉开放 API（需先
 | **进程** | `start` `stop` `is-running` | 启停 LX |
 | **配置** | `config-show` `config-enable` `config-disable` `where` `backup` | 配置与备份 |
 | **数据库** | `db tables/info/schema/query/stats` | 只读查询 |
-| **自检 / 卸载** | `doctor` `uninstall` | 排障 + 卸载 CLI |
+| **自检 / 卸载** | `doctor` `status-install` `uninstall` | 排障 + 安装状态 + 卸载 CLI |
 
 完整参数见 [`docs/reference/commands.md`](docs/reference/commands.md)。
 

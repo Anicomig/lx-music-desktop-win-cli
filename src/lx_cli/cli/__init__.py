@@ -25,7 +25,8 @@ from .. import __version__
 from .._logging import setup_logging
 from ..errors import EXIT_RUNTIME, exit_code_for
 from ._common import Ctx
-from . import db_cmd, doctor, music, player, playlist, proc, script, uninstall
+from . import (db_cmd, doctor, music, player, playlist, proc, script,
+               status_cmd, uninstall)
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"],
                         max_content_width=100)
@@ -107,6 +108,7 @@ cli.add_command(db_cmd.db_group, "db")
 
 # ---- 自检与卸载 ----
 cli.add_command(doctor.doctor_cmd, "doctor")
+cli.add_command(status_cmd.status_install_cmd, "status-install")
 cli.add_command(uninstall.uninstall_cmd, "uninstall")
 
 

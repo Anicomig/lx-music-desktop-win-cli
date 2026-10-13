@@ -166,8 +166,15 @@ class TestProxyInteraction:
     """
 
     def test_127_is_proxy_bypassed_but_0000_is_not(self):
-        """requests 对 127.0.0.1 豁免代理，对 0.0.0.0 不豁免。"""
+        """requests 对 127.0.0.1 豁免代理，对 0.0.0.0 不豁免。
+
+        ⚠️ 仅在**系统代理开启时**才有意义：没配代理时 getproxies()={}，
+        proxy_bypass() 对所有地址都返回 False（无代理可绕过）。
+        所以这里先探测环境，无代理则跳过 —— 不能假设测试机一定开着代理。
+        """
         import urllib.request
+        if not urllib.request.getproxies():
+            pytest.skip("系统未配置代理，proxy_bypass 语义不适用")
         assert urllib.request.proxy_bypass("127.0.0.1") is True
         assert urllib.request.proxy_bypass("localhost") is True
         # 0.0.0.0 不豁免 -> 会被发给系统代理 -> 代理连不上 -> 502

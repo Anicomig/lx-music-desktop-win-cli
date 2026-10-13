@@ -63,6 +63,7 @@ Commands:
   source-list
   start
   status
+  status-install
   stop
   toggle
   uncollect
@@ -450,6 +451,16 @@ Options:
   --filter TEXT  逗号分隔字段名，如 status,name,singer,progress
   --json         输出机器可读 JSON（stdout 只有 JSON，日志走 stderr）。
   -h, --help     Show this message and exit.
+```
+
+### `lx status-install`
+
+```text
+Usage: lx status-install [OPTIONS]
+
+Options:
+  --json      输出结构化 JSON
+  -h, --help  Show this message and exit.
 ```
 
 ### `lx stop`

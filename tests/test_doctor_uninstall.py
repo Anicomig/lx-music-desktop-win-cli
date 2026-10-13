@@ -37,8 +37,8 @@ class TestDoctor:
 
     def test_doctor_json_shape(self):
         p = _run("doctor", "--json")
-        # 若没 fail，0；否则 1
-        assert p.returncode in (0, 1)
+        # 退出码取决于环境：全 ok=0，有 warn=2，有 fail=1；都算"跑了"
+        assert p.returncode in (0, 1, 2), f"exit={p.returncode}"
         d = json.loads(p.stdout)
         assert "checks" in d
         assert isinstance(d["checks"], list)
