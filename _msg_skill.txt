@@ -1,0 +1,34 @@
+feat(skills): 按新要求重构 lx-cli skill（安装精简+强制读包内文档+功能查找指引）
+
+## 安装部分：精简，强制读包内文档
+- 不复述安装细节（会与包内文档脱节），改为表格指向：
+  README.md / docs/guide/如何更新.md / docs/guide/迁移到新电脑.md
+- 保留最小验证三条：--version / status-install / doctor
+- 提到 Windows 一键 install.bat / uninstall.bat
+- 仍强调入口优先 run.py（免安装、搬家可用），勿用裸 python -m lx_cli
+
+## 使用部分：补全正常 desktop 操作
+- 新增「正常 Desktop 操作功能」命令地图表（11 类，含
+  status-install/doctor/uninstall、lyric-all、source-list 等）
+- 保留搜索 / 加歌单 / 播放 / 音源脚本四个核心工作流
+- 工作流程仍强调：预演 -> 确认 -> --apply；写操作需关 LX；绝不 --force
+
+## 功能查找：优先读包内文档（新章节）
+当所需能力不在命令地图、或本文没写清时，**不要猜测命令**，先读：
+1. docs/reference/commands.md（命令是否存在/参数）
+2. docs/guide/功能与操作.md（怎么用、坑）
+3. docs/internals/README.md（排障索引）
+4. docs/internals/contracts.md（id/meta 硬契约）
+5. docs/internals/research/（源码与真实数据调研）
+- 附上完整 <cli-root> 目录树，标注各文档用途
+
+## 其它必要部分
+- 更新 description（补触发词：更新/安装/卸载 cli、查看安装状态）
+- 保留 CRITICAL RULES / 退出码表 / Tips / Never Do This / Reference Files
+- 190 行（<500），description 456 字符（<1024）
+
+## 工程
+- 新增 scripts/sync_skill_commands.py：同步 commands.md 到 skill 副本
+  并修正相对链接层级（references/ 到 cli-root 是 3 级，不是 4 级）
+- tests/test_skills.py +3 用例（同步一致性、副本链接可解析、指引包内文档）
+- 349 passed, 1 skipped

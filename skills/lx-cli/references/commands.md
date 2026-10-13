@@ -40,10 +40,12 @@ Commands:
   config-show
   db              数据库只读查询（LX 运行时也安全）。
   dislike
+  doctor
   hot
   is-running
   leaderboard
   lyric
+  lyric-all
   mute
   next
   open-list
@@ -61,9 +63,11 @@ Commands:
   source-list
   start
   status
+  status-install
   stop
   toggle
   uncollect
+  uninstall
   volume
   where
 ```
@@ -164,6 +168,17 @@ Options:
   -h, --help  Show this message and exit.
 ```
 
+### `lx doctor`
+
+```text
+Usage: lx doctor [OPTIONS]
+
+Options:
+  --no-network  只做本地检查（跳过 API 连通与外网搜索）
+  --json        输出结构化 JSON
+  -h, --help    Show this message and exit.
+```
+
 ### `lx hot`
 
 ```text
@@ -202,6 +217,17 @@ Options:
 
 ```text
 Usage: lx lyric [OPTIONS]
+
+Options:
+  --all       输出全部歌词类型。
+  --json      输出机器可读 JSON（stdout 只有 JSON，日志走 stderr）。
+  -h, --help  Show this message and exit.
+```
+
+### `lx lyric-all`
+
+```text
+Usage: lx lyric-all [OPTIONS]
 
 Options:
   --all       输出全部歌词类型。
@@ -427,6 +453,16 @@ Options:
   -h, --help     Show this message and exit.
 ```
 
+### `lx status-install`
+
+```text
+Usage: lx status-install [OPTIONS]
+
+Options:
+  --json      输出结构化 JSON
+  -h, --help  Show this message and exit.
+```
+
 ### `lx stop`
 
 ```text
@@ -457,6 +493,19 @@ Usage: lx uncollect [OPTIONS]
 Options:
   --json      输出机器可读 JSON（stdout 只有 JSON，日志走 stderr）。
   -h, --help  Show this message and exit.
+```
+
+### `lx uninstall`
+
+```text
+Usage: lx uninstall [OPTIONS]
+
+Options:
+  --apply           真正执行（默认 dry-run）
+  --yes             跳过二次确认（用于脚本/AI 自主决策）
+  --restore-config  把 config_v2.json.openAPI.enable 改回 false（**需先关 LX**）
+  --json            输出结构化 JSON
+  -h, --help        Show this message and exit.
 ```
 
 ### `lx volume`
