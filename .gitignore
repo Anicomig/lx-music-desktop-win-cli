@@ -35,3 +35,6 @@ lx_cli_scripts_meta.json
 # ��ʱ�ļ�
 _msg.txt
 COMMIT_MSG*.txt
+
+# ---- 本地构建产物：发布包缓存，不入库（正式分发走 GitHub Releases）----
+releases/
