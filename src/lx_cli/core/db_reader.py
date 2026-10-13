@@ -270,3 +270,164 @@ def list_downloads(*, limit: int = 20, db_override=None, exe_path=None
         return [dict(r) for r in c.execute(
             "SELECT id, status, progress_downloaded, progress_total, fileName, filePath "
             "FROM download_list ORDER BY position LIMIT ?", (limit,))]
+
+
+# --------------------------------------------------------------- 下载（download_list）
+
+#: ``download_list.status`` 取值（来自 LX 常量 DOWNLOAD_STATUS）
+DL_COMPLETED = "completed"
+DL_ERROR = "error"
+DL_RUN = "run"
+DL_WAITING = "waiting"
+DL_PAUSE = "pause"
+
+
+def _download_select() -> str:
+    return ("SELECT id, isComplate, status, statusText, quality, ext, "
+            "progress_downloaded, progress_total, fileName, filePath, "
+            "musicInfo, position FROM download_list")
+
+
+def _parse_music_info(raw: str | None) -> dict[str, Any]:
+    """``musicInfo`` 是 JSON 字符串，解析失败时返回空 dict（不抛）。"""
+    import json
+    if not raw:
+        return {}
+    try:
+        v = json.loads(raw)
+        return v if isinstance(v, dict) else {}
+    except (ValueError, TypeError):
+        return {}
+
+
+def _download_row(r: sqlite3.Row) -> dict[str, Any]:
+    mi = _parse_music_info(r["musicInfo"])
+    total = r["progress_total"] or 0
+    done = r["progress_downloaded"] or 0
+    return {
+        "id": r["id"],
+        "name": mi.get("name") or _name_from_file(r["fileName"]),
+        "singer": mi.get("singer") or "",
+        "source": mi.get("source") or "",
+        "songmid": mi.get("songmid") or mi.get("id") or "",
+        "quality": r["quality"],
+        "ext": r["ext"],
+        "status": r["status"],
+        "statusText": r["statusText"],
+        "isComplete": bool(r["isComplate"]),
+        "progress": {"downloaded": done, "total": total},
+        "percent": round(done / total * 100, 1) if total else (100.0 if r["isComplate"] else 0.0),
+        "fileName": r["fileName"],
+        "filePath": r["filePath"],
+        "position": r["position"],
+    }
+
+
+def _name_from_file(file_name: str) -> str:
+    """从 '歌名 - 歌手.ext' 兜底解析歌名。"""
+    if not file_name:
+        return ""
+    stem = file_name.rsplit(".", 1)[0] if "." in file_name else file_name
+    return stem.split(" - ", 1)[0].strip()
+
+
+def downloads(*, status: str | None = None, source: str | None = None,
+              quality: str | None = None, limit: int | None = None,
+              db_override=None, exe_path=None) -> list[dict[str, Any]]:
+    """列出下载记录（可按 status / source / quality 过滤）。
+
+    :param status: ``completed`` / ``error`` / ``run`` … 或 ``incomplete``（未完成）
+    """
+    sql = _download_select()
+    where: list[str] = []
+    params: list[Any] = []
+    if status == "incomplete":
+        where.append("isComplate = 0")
+    elif status:
+        where.append("status = ?")
+        params.append(status)
+    if quality:
+        where.append("quality = ?")
+        params.append(quality)
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " ORDER BY position"
+    if limit:
+        sql += " LIMIT ?"
+        params.append(limit)
+
+    with connect(db_override, exe_path) as c:
+        rows = [_download_row(r) for r in c.execute(sql, params)]
+    # source 在 musicInfo JSON 里，SQL 过滤不了 —— 这里内存过滤
+    if source:
+        rows = [r for r in rows if r["source"] == source]
+    return rows
+
+
+def download_stats(*, db_override=None, exe_path=None) -> dict[str, Any]:
+    """下载总览：计数、按状态/质量/平台分布、总字节。"""
+    with connect(db_override, exe_path) as c:
+        rows = [_download_row(r) for r in c.execute(_download_select())]
+
+    by_status: dict[str, int] = {}
+    by_quality: dict[str, int] = {}
+    by_source: dict[str, int] = {}
+    total_bytes = 0
+    for r in rows:
+        by_status[r["status"]] = by_status.get(r["status"], 0) + 1
+        by_quality[r["quality"]] = by_quality.get(r["quality"], 0) + 1
+        if r["source"]:
+            by_source[r["source"]] = by_source.get(r["source"], 0) + 1
+        total_bytes += r["progress"]["downloaded"] or 0
+
+    completed = by_status.get(DL_COMPLETED, 0)
+    return {
+        "total": len(rows),
+        "completed": completed,
+        "failed": by_status.get(DL_ERROR, 0),
+        "incomplete": sum(1 for r in rows if not r["isComplete"]),
+        "byStatus": by_status,
+        "byQuality": by_quality,
+        "bySource": by_source,
+        "totalBytes": total_bytes,
+        "totalMB": round(total_bytes / 1024 / 1024, 1),
+    }
+
+
+def verify_downloads(*, check_size: bool = True, size_tolerance: float = 0.10,
+                     db_override=None, exe_path=None) -> dict[str, Any]:
+    """校验 ``filePath`` 是否真实存在（找出"记录在但文件没了"）。
+
+    :param check_size: 是否额外比对磁盘大小与 ``progress_total``
+    :param size_tolerance: 大小允许的相对误差（默认 10%）
+
+    ⚠️ 为什么默认 10% 而不是 1%：实测发现**正常文件也会有小幅差异**——
+    LX 下载后会补写 ID3 标签（实测差异 -1.5% ~ +12.9%，65/70 是"实际更大"）。
+    用 1% 会把 70 个正常文件误报成异常；10% 才能筛出**真正损坏**的（如半截文件）。
+    """
+    with connect(db_override, exe_path) as c:
+        rows = [_download_row(r) for r in c.execute(_download_select())]
+
+    missing, size_mismatch, present = [], [], []
+    for r in rows:
+        p = Path(r["filePath"]) if r["filePath"] else None
+        if not p or not p.is_file():
+            missing.append(r)
+            continue
+        if check_size:
+            actual = p.stat().st_size
+            expect = r["progress"]["total"] or 0
+            if expect and abs(actual - expect) > expect * size_tolerance:
+                r = {**r, "actualSize": actual, "expectedSize": expect}
+                size_mismatch.append(r)
+                continue
+        present.append(r)
+
+    return {
+        "total": len(rows),
+        "present": len(present),
+        "missing": len(missing),
+        "sizeMismatch": len(size_mismatch),
+        "missingItems": missing,
+        "sizeMismatchItems": size_mismatch,
+    }

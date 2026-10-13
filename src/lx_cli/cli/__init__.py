@@ -25,8 +25,8 @@ from .. import __version__
 from .._logging import setup_logging
 from ..errors import EXIT_RUNTIME, exit_code_for
 from ._common import Ctx
-from . import (db_cmd, doctor, music, player, playlist, proc, script,
-               status_cmd, uninstall)
+from . import (db_cmd, doctor, download, music, player, playlist, proc, script,
+               script_doctor, status_cmd, uninstall)
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"],
                         max_content_width=100)
@@ -102,6 +102,8 @@ cli.add_command(playlist.playlist_group, "playlist")
 
 # ---- 音源脚本（需求 B）----
 cli.add_command(script.script_group, "script")
+# 脚本体检：挂到 `lx script doctor` 下
+script.script_group.add_command(script_doctor.script_doctor_cmd, "doctor")
 
 # ---- 数据库 ----
 cli.add_command(db_cmd.db_group, "db")
@@ -110,6 +112,9 @@ cli.add_command(db_cmd.db_group, "db")
 cli.add_command(doctor.doctor_cmd, "doctor")
 cli.add_command(status_cmd.status_install_cmd, "status-install")
 cli.add_command(uninstall.uninstall_cmd, "uninstall")
+
+# ---- 下载记录查询（只读）----
+cli.add_command(download.download_group, "download")
 
 
 def _fix_console_encoding() -> None:

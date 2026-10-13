@@ -82,7 +82,8 @@ python <cli-root>/run.py doctor             # 8 项自检，失败项给下一�
 | **收藏** | `collect` `uncollect`（仅作用于当前播放曲） |
 | **歌词** | `lyric`（当前曲）· `lyric-all`（全部类型，`lyric --all` 同义） |
 | **歌单** | `playlist list/show/find/create/rename/delete/add/remove` |
-| **音源脚本** | `script list/repo/install/update/remove/enable/active/verify` |
+| **音源脚本** | `script list/repo/install/update/remove/enable/active/verify` `script doctor` |
+| **下载记录（只读）** | `download stats/list/failed/verify` |
 | **进程** | `start` `stop` `is-running` |
 | **配置/路径** | `config-show` `config-enable` `config-disable` `where` `backup` |
 | **数据库（只读）** | `db tables/info/schema/query/stats` |
@@ -133,13 +134,25 @@ python <cli-root>/run.py search-play "又三郎" --singer ヨルシカ --json
 # 约 9s 生效，之后用 status --json 确认
 ```
 
-### 4. 音源脚本
+### 4. 音源脚本 + 下载排查
 
 ```bash
 python <cli-root>/run.py script list --json          # 已装 + 当前启用
+python <cli-root>/run.py script doctor --json        # ★ 体检：找空壳/失效脚本
 python <cli-root>/run.py script update --all --json  # 预演（按内容哈希）
 python <cli-root>/run.py script install flower --apply --json  # 需关 LX
 ```
+
+**下载情况只读查询**（不发起下载）：
+
+```bash
+python <cli-root>/run.py download stats  --json   # 总数/完成/失败/质量/来源
+python <cli-root>/run.py download failed --json   # 失败明细 + 可操作建议
+python <cli-root>/run.py download verify --json   # 文件是否真实存在
+```
+
+> ⚠️ **下载失败先查音源脚本**：`script doctor` 会标出"字符数过小=疑似空壳"。
+> CLI **无法发起下载**（Open API / Scheme URL 均无下载端点），只能在 GUI 里下。
 
 ---
 

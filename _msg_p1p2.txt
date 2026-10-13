@@ -1,0 +1,39 @@
+feat(download): P1 下载记录查询 + P2 音源脚本体检（379 测试全绿）
+
+## P1: lx download（只读查询下载状况）
+- download stats  —— 总数/完成/失败、按状态/质量/来源统计、总字节
+- download list   —— 逐条列出（可按 status/source/quality 过滤）
+- download failed —— 只列失败项，每条给出**可操作建议**
+- download verify —— 校验文件是否真实存在（记录在但磁盘没有）
+
+实测本机真实库：517 条记录（485 完成 / 32 失败）、16.4 GB、
+34 个文件缺失、2 个大小真异常。
+
+## P2: lx script doctor（音源脚本体检）
+- 字符数 < 2000 → 标记"疑似空壳"（实测根因：972 字符脚本
+  导致 26 首下载失败）
+- 识别**转发型脚本**及依赖的第三方后端域名（后端挂了脚本就废）
+- 从源码提取支持的平台/音质、检查头部注释块
+- 自动排序（问题项置顶）+ 推荐可替代的健康脚本与启用命令
+
+实测本机：正确把 972 字符的"聚合API接口 (CF)"标到最前并给出换脚本建议。
+
+## 修复
+- verify 大小比对阈值 1% → 10%：实测 LX 下载后补写 ID3 标签，
+  正常文件差 1~2%，1% 会误报 70 条（放宽后只剩 2 条真异常）
+- script doctor 的 modified 误报：GUI 导入的脚本无哈希记录，
+  modified=True 属误报，现仅对 CLI 安装的脚本检测
+
+## 工程
+- db_reader 扩展 downloads/download_stats/verify_downloads
+- 新增 tests/test_download_query.py（30 用例）
+- 文档：README 命令表、功能与操作.md（新增 4.1.1 与 7.5 两节）、
+  CHANGELOG、skill 命令地图与工作流
+- commands.md 与 skill 副本已重新生成同步
+
+## 架构说明
+本阶段**不执行 JS 脚本**、不发起下载 —— CLI 无法发起下载
+（Open API / Scheme URL 均无下载端点）。P3（Node sidecar 执行
+JS 音源）待单独实施。
+
+分支：feat/download-query（基于 v0.2.1 tag）

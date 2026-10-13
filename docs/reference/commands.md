@@ -41,6 +41,7 @@ Commands:
   db              数据库只读查询（LX 运行时也安全）。
   dislike
   doctor
+  download        下载记录查询与校验（只读）。
   hot
   is-running
   leaderboard
@@ -177,6 +178,23 @@ Options:
   --no-network  只做本地检查（跳过 API 连通与外网搜索）
   --json        输出结构化 JSON
   -h, --help    Show this message and exit.
+```
+
+### `lx download`
+
+```text
+Usage: lx download [OPTIONS] COMMAND [ARGS]...
+
+  下载记录查询与校验（只读）。
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  failed
+  list
+  stats
+  verify
 ```
 
 ### `lx hot`
@@ -358,6 +376,7 @@ Options:
 
 Commands:
   active
+  doctor
   enable
   install
   list
@@ -666,6 +685,7 @@ Options:
 
 Commands:
   active
+  doctor
   enable
   install
   list
@@ -679,6 +699,16 @@ Commands:
 
 ```text
 Usage: lx script active [OPTIONS]
+
+Options:
+  --json      输出机器可读 JSON（stdout 只有 JSON，日志走 stderr）。
+  -h, --help  Show this message and exit.
+```
+
+#### `lx script doctor`
+
+```text
+Usage: lx script doctor [OPTIONS]
 
 Options:
   --json      输出机器可读 JSON（stdout 只有 JSON，日志走 stderr）。
