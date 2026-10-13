@@ -224,6 +224,7 @@ CLI 输出里 `source: "kg"` + `sourceLabel: "酷狗音乐"`，**永远不出现
 |---|---|
 | [`docs/guide/功能与操作.md`](docs/guide/功能与操作.md) | 每个功能怎么用、注意事项 |
 | [`docs/guide/迁移到新电脑.md`](docs/guide/迁移到新电脑.md) | **换电脑：拷过去就能用**（含依赖、自检清单） |
+| [`docs/guide/如何更新.md`](docs/guide/如何更新.md) | **升级到新版**（下载 zip → install.bat，实测流程） |
 | [`docs/guide/ai-usage.md`](docs/guide/ai-usage.md) | AI 使用指南（JSON 契约、退出码、安全） |
 | [`docs/guide/skills-usage.md`](docs/guide/skills-usage.md) | skills 安装与使用 |
 | [`docs/reference/commands.md`](docs/reference/commands.md) | **全部命令与参数**（自动生成） |
