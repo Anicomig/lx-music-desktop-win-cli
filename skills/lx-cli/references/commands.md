@@ -194,8 +194,10 @@ Options:
 
 Commands:
   failed
+  failed-all
   get
   list
+  list-all
   repair
   stats
   url

@@ -84,6 +84,7 @@ python <cli-root>/run.py doctor             # 8 项自检，失败项给下一�
 | **歌单** | `playlist list/show/find/create/rename/delete/add/remove` |
 | **音源脚本** | `script list/repo/install/update/remove/enable/active/verify` `script doctor` |
 | **下载记录（只读）** | `download stats/list/failed/verify` |
+| **下载音乐（CLI 自己下）** | `download url/get` · `download list-all` · `download failed-all` |
 | **进程** | `start` `stop` `is-running` |
 | **配置/路径** | `config-show` `config-enable` `config-disable` `where` `backup` |
 | **数据库（只读）** | `db tables/info/schema/query/stats` |
@@ -152,7 +153,29 @@ python <cli-root>/run.py download verify --json   # 文件是否真实存在
 ```
 
 > ⚠️ **下载失败先查音源脚本**：`script doctor` 会标出"字符数过小=疑似空壳"。
-> CLI **无法发起下载**（Open API / Scheme URL 均无下载端点），只能在 GUI 里下。
+
+### 5. 下载音乐（★ CLI 自己下载，不走 LX）
+
+```bash
+# 单曲
+python <cli-root>/run.py download url 223088839 --source kw          # 只取直链
+python <cli-root>/run.py download get 223088839 --source kw --out D:\Music
+
+# 整个歌单（默认预演！）
+python <cli-root>/run.py download list-all "塞壬唱片" --out D:\Music
+python <cli-root>/run.py download list-all <list_id> --out D:\Music --apply
+
+# 批量重下失败曲（含"文件已丢失"的）
+python <cli-root>/run.py download failed-all --out D:\Music            # 预演
+python <cli-root>/run.py download failed-all --out D:\Music --apply
+```
+
+**关键规则**：
+* 批量命令**默认预演**，必须加 `--apply` 才下载
+* 音质要**按脚本支持的来**（`script doctor` 会显示）——传错会失败
+* 需 **Node**（内置 `tools/node/`，或 `LX_NODE`，或 PATH）
+* **只运行信任的脚本**（Node `vm` 非安全沙箱）
+* Node 是一次性子进程，用完即释放，不会残留
 
 ---
 

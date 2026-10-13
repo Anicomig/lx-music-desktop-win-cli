@@ -1,0 +1,41 @@
+feat(download): 批量下载（整歌单 / 失败曲）+ 修复 songmid 前缀 bug（448 测试）
+
+## 新增：批量下载
+- download list-all <歌单>  —— 整个歌单批量下载（支持 id 或名称）
+  * 名称匹配多个时**报错要求用 id**，不猜
+- download failed-all        —— 批量重下失败曲
+  * 覆盖两类：status=error + "记录在但文件已丢失"（verify 发现的）
+- download repair            —— failed-all 的短别名（保留兼容）
+
+共同特性：
+  * **默认预演**（不启动 Node、不下载、不建目录）
+  * --limit 限量 / --source 过滤 / --report 导出 JSON 清单
+  * 跳过已存在（非空文件）/ --overwrite 可关
+  * **单曲失败不中断整批**，最后汇总（退出码 4）
+  * 每首间隔 0.35s 防限流
+
+## ★ 修复：songmid 带前缀导致取链必然失败
+download_list 里的 id 形如 kw_223088839，但 JS 音源脚本需要**裸 id**。
+实测对比：
+    lx download url kw_223088839 --source kw  → 失败
+    lx download url 223088839    --source kw  → 成功
+这个 bug 会让批量重下**全部 32 首失败**。
+现统一用 parse_song_id 解析（kg 同时剥掉 hash），并在
+downloads() 里同时保留 musicId（原始）与 songmid（裸 id）。
+
+## 实测
+failed-all 真实下载 3 首（kw）：成功 2（12.79MB）/ 失败 1，
+耗时 9.2s，**无进程残留**；report.json 正常写出。
+
+## 测试
+- tests/test_download_batch.py（27 用例）：
+  任务构造（裸 id 回归）/ 预演不建目录 / 跳过已存在 /
+  失败隔离 / 报告一致 / CLI 等价性（repair == failed-all）
+- 448 passed, 2 skipped（新增 88 用例）
+
+## 文档
+- 功能与操作.md 新增 §7.6「下载音乐」（单曲/歌单/失败曲/行为/Node/安全）
+- skill 增加"下载音乐"工作流与关键规则
+- CHANGELOG 补 bug 说明
+
+分支：feat/jshost-download（基于 p3-done tag）

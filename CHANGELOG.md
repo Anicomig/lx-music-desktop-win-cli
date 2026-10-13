@@ -5,10 +5,17 @@
 ## 未发布
 
 ### 新增
+- **批量下载（P3 增强）**：
+  * `download list-all <歌单>` —— **整个歌单批量下载**（支持 id 或名称；
+    名称歧义时报错让你用 id）
+  * `download failed-all` —— 批量重下失败曲，涵盖 `status=error`
+    **以及"记录在但文件已丢失"**两类
+  * `download repair` —— `failed-all` 的短别名（保留兼容）
+  * 共同特性：默认**预演**、`--limit` 限量、`--report` 导出 JSON 清单、
+    `--source` 过滤、**跳过已存在**、**失败不中断**、每首间隔 0.35s 防限流
 - **`lx download url/get/repair`（P3）—— CLI 自己执行 JS 音源下载**：
   * `download url <songmid> --source kw` 取播放直链（排查"能不能取到"）
   * `download get <songmid> --source kw --out <dir>` 下载单曲
-  * `download repair --out <dir> [--apply]` 批量重下失败曲（默认预演）
   实现方式：**Node sidecar** 加载 LX 的 JS 音源脚本，复刻 desktop 的
   `musicUrl` 协议取直链，再由 CLI HTTP 下载。
 - **内嵌便携 Node**（`tools/node/`，89 MB）：开箱即用，无需用户装 Node。
@@ -26,11 +33,16 @@
   * 自动推荐可替代的健康脚本与启用命令
 
 ### 修复
+- ★ **`songmid` 带 source 前缀导致取链必然失败**：
+  `download_list` 里的 id 形如 `kw_223088839`，但 JS 音源脚本需要**裸 id**。
+  实测：传 `kw_223088839` → 失败；传 `223088839` → 成功。
+  现统一用 `parse_song_id` 解析出裸 id（kg 同时剥掉 hash）。
+  这个 bug 会让批量重下 **全部 32 首失败**。
 - `verify_downloads` 大小比对阈值从 1% 放宽到 **10%** ——
   实测 LX 下载后会补写 ID3 标签，正常文件也差 1~2%，1% 会误报 70 条。
 
 ### 测试
-- 421 passed, 2 skipped（新增 61 用例）
+- 448 passed, 2 skipped（新增 88 用例）
 
 ### ⚠️ 安全说明
 CLI 现在会**执行第三方 JS 音源脚本**。Node 的 `vm` **不是安全沙箱**

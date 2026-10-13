@@ -25,8 +25,9 @@ from .. import __version__
 from .._logging import setup_logging
 from ..errors import EXIT_RUNTIME, exit_code_for
 from ._common import Ctx
-from . import (db_cmd, doctor, download, download_repair, music, player,
-               playlist, proc, script, script_doctor, status_cmd, uninstall)
+from . import (db_cmd, doctor, download, download_batch, download_repair,
+               music, player, playlist, proc, script, script_doctor,
+               status_cmd, uninstall)
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"],
                         max_content_width=100)
@@ -116,6 +117,9 @@ cli.add_command(uninstall.uninstall_cmd, "uninstall")
 # ---- 下载记录查询（只读）+ 借 JS 音源下载 ----
 cli.add_command(download.download_group, "download")
 download.download_group.add_command(download_repair.dl_repair, "repair")
+download.download_group.add_command(download_batch.dl_list_all, "list-all")
+download.download_group.add_command(download_batch.dl_failed_all,
+                                    "failed-all")
 
 
 def _fix_console_encoding() -> None:

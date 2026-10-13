@@ -304,12 +304,27 @@ def _download_row(r: sqlite3.Row) -> dict[str, Any]:
     mi = _parse_music_info(r["musicInfo"])
     total = r["progress_total"] or 0
     done = r["progress_downloaded"] or 0
+    raw_id = mi.get("id") or ""
+    source = mi.get("source") or ""
+    # ★ 供 JS 音源脚本使用的**裸** songmid（去掉 source 前缀）。
+    #   实测：带前缀的 kw_223088839 会让脚本取链失败，裸 223088839 才行。
+    songmid = (mi.get("songmid") or "") if isinstance(mi, dict) else ""
+    if not songmid and raw_id:
+        try:
+            from .musicinfo import parse_song_id
+            if source:
+                songmid = parse_song_id(raw_id, source).songmid
+            else:
+                songmid = raw_id
+        except Exception:                          # noqa: BLE001
+            songmid = raw_id
     return {
         "id": r["id"],
+        "musicId": raw_id,                         # 原始（可能带前缀）
         "name": mi.get("name") or _name_from_file(r["fileName"]),
         "singer": mi.get("singer") or "",
-        "source": mi.get("source") or "",
-        "songmid": mi.get("songmid") or mi.get("id") or "",
+        "source": source,
+        "songmid": songmid or raw_id,              # 裸 id，可直接给下载用
         "quality": r["quality"],
         "ext": r["ext"],
         "status": r["status"],
