@@ -11,8 +11,8 @@ from ..core import launcher
 from ..core.openapi_client import endpoints_from_config, wait_ready
 from ..errors import PathError
 from ..paths import (
-    config_v2_path, data_json_path, db_path, lx_datas_dir, scripts_meta_path,
-    user_api_path, user_data_dir,
+    config_v2_path, data_json_path, db_path, find_exe, lx_datas_dir,
+    scripts_meta_path, user_api_path, user_data_dir,
 )
 from ._common import Ctx, emit, json_option, pass_ctx, wrap_errors
 
@@ -138,8 +138,9 @@ def config_disable_cmd(ctx: Ctx) -> None:
 @wrap_errors
 def where_cmd(ctx: Ctx) -> None:
     """显示用到的数据路径。"""
+    exe, _ = find_exe(ctx.exe)
     payload = {
-        "exe": str(ctx.exe) if ctx.exe else str(launcher.exe_path(None)),
+        "exe": str(exe) if exe else "(未找到)",
         "userData": str(user_data_dir(ctx.exe)),
         "LxDatas": str(lx_datas_dir(ctx.exe)),
         "config_v2.json": str(config_v2_path(ctx.exe)),

@@ -190,6 +190,11 @@ def lyric_cmd(ctx: Ctx, all_variants: bool) -> None:
         emit(ctx, text, {"lyric": text})
 
 
+# 别名：Open API 端点叫 /lyric-all，加个别名避免"端点名误当命令名"
+lyric_all_cmd = lyric_cmd
+lyric_all_cmd.name = "lyric-all"
+
+
 # --------------------------------------------------------------- Scheme URL
 
 

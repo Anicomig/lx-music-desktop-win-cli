@@ -25,7 +25,7 @@ from .. import __version__
 from .._logging import setup_logging
 from ..errors import EXIT_RUNTIME, exit_code_for
 from ._common import Ctx
-from . import db_cmd, music, player, playlist, proc, script
+from . import db_cmd, doctor, music, player, playlist, proc, script, uninstall
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"],
                         max_content_width=100)
@@ -75,6 +75,7 @@ cli.add_command(player.volume_cmd, "volume")
 cli.add_command(player.mute_cmd, "mute")
 cli.add_command(player.status_cmd, "status")
 cli.add_command(player.lyric_cmd, "lyric")
+cli.add_command(player.lyric_all_cmd, "lyric-all")   # 别名：与 Open API 端点同名
 cli.add_command(player.collect_cmd, "collect")
 cli.add_command(player.uncollect_cmd, "uncollect")
 
@@ -103,6 +104,10 @@ cli.add_command(script.script_group, "script")
 
 # ---- 数据库 ----
 cli.add_command(db_cmd.db_group, "db")
+
+# ---- 自检与卸载 ----
+cli.add_command(doctor.doctor_cmd, "doctor")
+cli.add_command(uninstall.uninstall_cmd, "uninstall")
 
 
 def _fix_console_encoding() -> None:

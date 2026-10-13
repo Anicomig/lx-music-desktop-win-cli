@@ -137,6 +137,7 @@ lx where                  :: 显示 LX 安装路径与数据目录（含诊断�
 | **进程** | `start` `stop` `is-running` | 启停 LX |
 | **配置** | `config-show` `config-enable` `config-disable` `where` `backup` | 配置与备份 |
 | **数据库** | `db tables/info/schema/query/stats` | 只读查询 |
+| **自检 / 卸载** | `doctor` `uninstall` | 排障 + 卸载 CLI |
 
 完整参数见 [`docs/reference/commands.md`](docs/reference/commands.md)。
 

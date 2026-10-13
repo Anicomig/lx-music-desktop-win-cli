@@ -327,19 +327,28 @@ def _find_in_windows_registry() -> Path | None:
     return None
 
 
-def find_exe(*, search: bool = True) -> tuple[Path | None, str]:
+def find_exe(exe_override: Path | None = None, *,
+            search: bool = True) -> tuple[Path | None, str]:
     """P4：查找 LX 可执行文件，返回 ``(路径, 来源说明)``。
 
     查找顺序：
 
-    1. 环境变量 ``LX_EXE``（显式覆盖）
-    2. 固定候选路径（含各盘符 ``Program Files``）
-    3. ``PATH``
-    4. Windows 注册表（协议关联 / 卸载信息 / App Paths）
-    5. 有界目录扫描（常见安装根下的 ``lx-music-desktop`` 目录）
+    1. 显式参数 ``exe_override``（来自 CLI 的 ``--exe`` 选项）
+    2. 环境变量 ``LX_EXE``（显式覆盖）
+    3. 固定候选路径（含各盘符 ``Program Files``）
+    4. ``PATH``
+    5. Windows 注册表（协议关联 / 卸载信息 / App Paths）
+    6. 有界目录扫描（常见安装根下的 ``lx-music-desktop`` 目录）
 
-    :param search: 是否执行第 4/5 步（可能稍慢）
+    :param exe_override: CLI ``--exe`` 选项传入的路径
+    :param search: 是否执行第 5/6 步（可能稍慢）
     """
+    if exe_override:
+        p = Path(exe_override)
+        if p.exists():
+            return p, "cli:--exe"
+        return None, f"cli:--exe 指向的路径不存在：{p}"
+
     explicit = os.environ.get("LX_EXE")
     if explicit:
         p = Path(explicit)

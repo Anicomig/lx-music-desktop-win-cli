@@ -1,15 +1,23 @@
 """Open API 客户端测试。
 
-核心回归点：**`status` 是字符串不是布尔** ——
-旧版 CLI 用 ``if st.get("status")`` 判断，导致 ``lx toggle`` 永远只暂停。
+核心回归点：
+
+* **`status` 是字符串不是布尔** —— 旧版 CLI 用 ``if st.get("status")`` 判断，
+  导致 ``lx toggle`` 永远只暂停。
+* **连接 host 永远是 127.0.0.1** —— 0.0.0.0 是监听通配符，不能作为客户端连接目标。
+* **本机端点必须绕过系统代理** —— 否则会被 Clash/v2rayN 拦截 → 502。
 """
 from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from lx_cli.core.openapi_client import (
     STATUS_ERROR, STATUS_PAUSED, STATUS_PLAYING, STATUS_STOPPED,
-    Endpoints, get_status, is_playing, set_mute, set_volume, toggle,
+    Endpoints, endpoints_from_config, get_status, is_playing, set_mute,
+    set_volume, toggle, _local_session,
 )
 
 
@@ -112,3 +120,97 @@ class TestGetStatusParsing:
         assert is_playing(st) is False
         # Open API 的 singer 用 ';' 分隔（与 DB 的 '、' 不同）
         assert ";" in st["singer"]
+
+
+class TestEndpointsHost:
+    """★ 连接 host 永远固定 127.0.0.1，不受 bindLan 影响。"""
+
+    def test_bindLan_true_uses_127(self, tmp_path, monkeypatch):
+        """即便 bindLan=true（LX 监听 0.0.0.0），CLI 仍用 127.0.0.1 连。"""
+        from lx_cli.core import openapi_client as mod
+        cfg = tmp_path / "config_v2.json"
+        cfg.write_text('{"setting":{"openAPI":{"enable":true,"port":"23330","bindLan":true}}}',
+                       encoding="utf-8")
+        fake_exe = tmp_path / "lx.exe"
+        fake_exe.write_bytes(b"")
+        monkeypatch.setattr(mod, "config_v2_path", lambda *a, **kw: cfg)
+        ep = mod.endpoints_from_config(fake_exe)
+        assert ep.base == "http://127.0.0.1:23330"
+        assert "0.0.0.0" not in ep.base, \
+            "0.0.0.0 不能作为客户端连接目标（WinError 10049）"
+
+    def test_bindLan_false_uses_127(self, tmp_path, monkeypatch):
+        from lx_cli.core import openapi_client as mod
+        cfg = tmp_path / "config_v2.json"
+        cfg.write_text('{"setting":{"openAPI":{"enable":true,"port":"23330","bindLan":false}}}',
+                       encoding="utf-8")
+        fake_exe = tmp_path / "lx.exe"
+        fake_exe.write_bytes(b"")
+        monkeypatch.setattr(mod, "config_v2_path", lambda *a, **kw: cfg)
+        ep = mod.endpoints_from_config(fake_exe)
+        assert ep.base == "http://127.0.0.1:23330"
+
+
+class TestLocalSessionBypassesProxy:
+    """★ 本机会话必须 trust_env=False（绕过系统代理）。"""
+
+    def test_local_session_trust_env_false(self):
+        s = _local_session()
+        assert s.trust_env is False, \
+            "本机 Open API 会话必须 trust_env=False，否则会走系统代理 → 502"
+
+    def test_get_does_not_use_global_session(self, monkeypatch):
+        """_get() 必须用 _local_session()，不能用全局 get_session()。
+
+        这是关键的"本机永远绕过代理，外网搜索永远走代理"分工的护栏。
+        任何回归（包括有人想"统一会话"）都会被这里抓住。
+        """
+        from lx_cli.core import openapi_client as mod
+        called = {"global": 0, "local": 0}
+
+        def fake_global(*a, **kw):
+            called["global"] += 1
+            raise AssertionError("_get 不应调用全局 get_session()")
+
+        class FakeResp:
+            status_code = 200
+            text = "{}"
+            def raise_for_status(self): pass
+
+        def fake_local_get(url, **kw):
+            called["local"] += 1
+            assert "127.0.0.1" in url
+            return FakeResp()
+
+        class FakeLocal:
+            def get(self, url, **kw): return fake_local_get(url, **kw)
+
+        monkeypatch.setattr("lx_cli.core.http.get_session", fake_global)
+        monkeypatch.setattr(mod, "_local_session", lambda: FakeLocal())
+
+        mod._get(_ep(), "/status", timeout=1.0)
+        assert called["local"] == 1
+        assert called["global"] == 0
+
+    def test_subscribe_does_not_use_global_session(self, monkeypatch):
+        """SSE 订阅同样必须用本机会话。"""
+        from lx_cli.core import openapi_client as mod
+
+        def fake_global(*a, **kw):
+            raise AssertionError("SSE 不应调用全局 get_session()")
+
+        class FakeResp:
+            def raise_for_status(self): pass
+            def iter_lines(self, **kw): return iter([])
+            def close(self): pass
+
+        class FakeLocal:
+            def get(self, url, **kw):
+                assert "/subscribe-player-status" in url
+                return FakeResp()
+
+        monkeypatch.setattr("lx_cli.core.http.get_session", fake_global)
+        monkeypatch.setattr(mod, "_local_session", lambda: FakeLocal())
+
+        # 触发一次迭代就会立刻遇到 iter_lines 结束
+        list(mod.subscribe_player_status(_ep(), idle_timeout=0.1))

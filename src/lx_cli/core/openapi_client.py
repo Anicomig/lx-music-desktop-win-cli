@@ -67,8 +67,16 @@ def read_open_api_settings(exe_path: Path | None = None) -> dict[str, Any]:
 
 
 def endpoints_from_config(exe_path: Path | None = None) -> Endpoints:
+    """从 config_v2.json 推导 Open API 端点。
+
+    ⚠️ **连接目标 host 永远固定为 127.0.0.1**：
+    0.0.0.0 是"监听所有网卡"的通配符，**只能用于服务器监听**，
+    不能作为客户端连接目标（连它会报 ``WinError 10049 / 无效地址``）。
+    即便 ``bindLan=true`` 让 LX 监听在 0.0.0.0，本机用 127.0.0.1 仍能连上；
+    跨机访问才需要 LAN IP（不在本 CLI 职责范围）。
+    """
     s = read_open_api_settings(exe_path)
-    host = "0.0.0.0" if s["bindLan"] else "127.0.0.1"
+    host = "127.0.0.1"
     return Endpoints(
         base=f"http://{host}:{s['port']}",
         enabled=s["enable"],
@@ -80,13 +88,48 @@ def endpoints_from_config(exe_path: Path | None = None) -> Endpoints:
 # --------------------------------------------------------------- 传输
 
 
+def _local_session() -> requests.Session:
+    """专用于本机 Open API 的会话。
+
+    ⚠️ **必须绕过系统代理**：LX 开放 API 监听在 127.0.0.1（本机），
+    而 Windows 上 ``requests`` 会自动读取"Internet 设置"里的系统代理
+    （如 Clash / v2rayN 的 127.0.0.1:7890），把本机请求发到代理 → 502。
+    全局会话（搜索用）仍需代理访问外网，故这里单独建一个绕过代理的会话。
+
+    强制分工：**本机端点永远绕过代理，外网搜索始终走代理**。
+    改回共享会话会导致这两类互相干扰。
+    """
+    s = requests.Session()
+    s.trust_env = False
+    s.headers["User-Agent"] = "lx-cli/0.2.0"
+    try:
+        from urllib3.util.retry import Retry
+        retry = Retry(
+            total=2, connect=2, read=2, backoff_factor=0.5,
+            backoff_jitter=0.3,
+            status_forcelist=(429, 500, 502, 503, 504),
+            respect_retry_after_header=True,
+            allowed_methods=frozenset({"GET", "HEAD", "POST", "OPTIONS"}),
+        )
+        from requests.adapters import HTTPAdapter
+        adapter = HTTPAdapter(max_retries=retry,
+                              pool_connections=10, pool_maxsize=10)
+        s.mount("http://", adapter)
+        s.mount("https://", adapter)
+    except Exception:
+        pass
+    return s
+
+
 def _get(ep: Endpoints, path: str, *, timeout: float = 5.0,
          params: dict | None = None) -> requests.Response:
-    """单次 GET，把 HTTP 层异常翻译成我们的异常树。"""
+    """单次 GET，把 HTTP 层异常翻译成我们的异常树。
+
+    使用 ``_local_session()``（绕过系统代理），见该函数说明。
+    """
     url = ep.url(path)
     try:
-        from .http import get_session
-        resp = get_session().get(url, timeout=timeout, params=params)
+        resp = _local_session().get(url, timeout=timeout, params=params)
     except requests.exceptions.ConnectionError as exc:
         raise OpenApiDisabled(
             f"无法连接开放 API（{url}）。\n"
@@ -259,9 +302,8 @@ def subscribe_player_status(ep: Endpoints, filter_keys: list[str] | None = None,
     """
     params = {"filter": ",".join(filter_keys)} if filter_keys else None
     url = ep.url("/subscribe-player-status")
-    from .http import get_session
     try:
-        resp = get_session().get(url, params=params, stream=True, timeout=None)
+        resp = _local_session().get(url, params=params, stream=True, timeout=None)
         resp.raise_for_status()
     except requests.exceptions.RequestException as exc:
         raise OpenApiError(f"SSE 连接失败：{url}: {exc}",
