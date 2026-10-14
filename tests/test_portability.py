@@ -8,7 +8,11 @@
 * P4 主动查找 LX 安装目录
 * 文档齐备性、以及公开仓库的合规性（无真实数据 / 无断链）
 """
+
 from __future__ import annotations
+
+from conftest import version_major_minor as _vmm
+_VERSION_MM = _vmm()
 
 import os
 import shutil
@@ -109,7 +113,7 @@ class TestPortableLauncher:
         """从任意工作目录用绝对路径调用 run.py。"""
         p = _run([sys.executable, str(PROJECT / "run.py"), "--version"], tmp_path)
         assert p.returncode == 0, f"stderr={p.stderr!r}"
-        assert "0.2" in p.stdout, f"应输出新版本号，实际：{p.stdout!r} {p.stderr!r}"
+        assert _VERSION_MM in p.stdout, f"应输出版本号，实际：{p.stdout!r} {p.stderr!r}"
 
     def test_run_py_after_relocate_and_rename(self, tmp_path):
         """P1+P2：整个目录改名/搬家后仍可用。"""
@@ -120,7 +124,7 @@ class TestPortableLauncher:
                             "tests", ".git"))
         p = _run([sys.executable, str(dst / "run.py"), "--version"], tmp_path)
         assert p.returncode == 0, f"stderr={p.stderr!r}"
-        assert "0.2" in p.stdout
+        assert _VERSION_MM in p.stdout
 
     def test_run_py_help_lists_commands(self, tmp_path):
         p = _run([sys.executable, str(PROJECT / "run.py"), "--help"], tmp_path)

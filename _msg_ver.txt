@@ -1,0 +1,24 @@
+chore(release): 版本号提升到 0.3.0 + 测试不再硬编码版本（448 测试全绿）
+
+## 版本提升
+- pyproject.toml: 0.2.1 -> 0.3.0
+- src/lx_cli/__init__.py: 0.2.1 -> 0.3.0
+- CHANGELOG: 「未发布」段落改为 v0.3.0，并说明发布包体积变化
+
+## ★ 修复测试脆弱性（提升版本号本不该让测试变红）
+v0.2.1 -> v0.3.0 时有 5 处测试因写死 `"0.2"` 而失败：
+  tests/test_cli_contract.py:35
+  tests/test_portability.py:112,123
+  tests/test_status_install.py:81
+  tests/test_wheels.py:156
+
+现改为从 conftest 动态读取：
+  conftest.py 增加 current_version() / version_major_minor()
+  （并顺带把 tests/ 加入 sys.path，使各测试可直接导入）
+  4 个测试文件改用 `from conftest import version_major_minor as _vmm`
+
+这样以后**任何**版本号提升都不会再让测试变红。
+
+## 校验
+- 448 passed, 2 skipped（本地 + pre-commit 钩子双环境验证）
+- gen_commands_doc --check / check_skills / fix_doc_links 全部通过

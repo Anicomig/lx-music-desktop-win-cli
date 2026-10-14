@@ -2,7 +2,11 @@
 
 这些测试保证：**发布的 zip 一定能在无网络的新电脑上装起来**。
 """
+
 from __future__ import annotations
+
+from conftest import version_major_minor as _vmm
+_VERSION_MM = _vmm()
 
 import hashlib
 import json
@@ -153,4 +157,4 @@ def test_offline_install_in_clean_venv():
                            capture_output=True, text=True, encoding="utf-8",
                            env=env, timeout=60)
         assert r.returncode == 0
-        assert "0.2" in r.stdout
+        assert _VERSION_MM in r.stdout

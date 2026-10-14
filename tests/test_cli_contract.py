@@ -6,7 +6,11 @@
 2. **``--json`` 契约**：成功有输出、形状稳定、stdout 不被日志污染
 3. **错误也有输出**（旧版会出现"exit 1 但 stdout/stderr 全空"）
 """
+
 from __future__ import annotations
+
+from conftest import version_major_minor as _vmm
+_VERSION_MM = _vmm()
 
 import json
 from pathlib import Path
@@ -32,7 +36,7 @@ class TestExitCodes:
     def test_version_ok(self, capsys):
         code, out, _ = run(capsys, "--version")
         assert code == 0
-        assert "lx" in out.lower() or "0.2" in out
+        assert "lx" in out.lower() or _VERSION_MM in out
 
     def test_help_ok(self, capsys):
         code, out, _ = run(capsys, "--help")

@@ -1,5 +1,9 @@
 """``lx status-install`` 测试。"""
+
 from __future__ import annotations
+
+from conftest import version_major_minor as _vmm
+_VERSION_MM = _vmm()
 
 import json
 import os
@@ -78,7 +82,7 @@ class TestVersionUnchanged:
     def test_version_is_single_line(self):
         out = _run("--version").stdout.strip()
         assert "\n" not in out
-        assert "0.2" in out
+        assert _VERSION_MM in out
         # 不应包含安装状态那些字段
         for forbidden in ("安装方式", "Python", "数据目录", "PATH"):
             assert forbidden not in out
